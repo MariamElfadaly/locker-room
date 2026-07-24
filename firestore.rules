@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Simple shared workspace: any signed-in user (your team) can read/write
+    // the one locker room document. Nobody else can -- not signed in, not allowed.
+    match /shared/lockerRoom {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isValidLockerRoom(request.resource.data);
+    }
+ 
+    // Basic schema + size validation so a buggy or malicious client can't
+    // write malformed or oversized data. (Firestore also hard-caps every
+    // document at 1MiB regardless of these rules.)
+    function isValidLockerRoom(data) {
+      return data.keys().hasAll(['lockerCount', 'lockers', 'employees'])
+        && data.lockerCount is int
+        && data.lockerCount >= 1 && data.lockerCount <= 300
+        && data.lockers is list
+        && data.lockers.size() <= 300
+        && data.employees is list
+        && data.employees.size() <= 2000;
+    }
+  }
+}
